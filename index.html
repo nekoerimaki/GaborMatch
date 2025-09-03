@@ -97,6 +97,7 @@
         }
         .mode-buttons {
             display: flex;
+            flex-direction: column;
             gap: 1rem;
             justify-content: center;
         }
@@ -159,25 +160,29 @@
     </style>
 </head>
 <body>
-    <div class="absolute top-4 right-8 z-50">
+    <div id="lang-switcher" class="absolute top-4 right-8 z-50">
         <button id="lang-ja" class="btn mr-2">日本語</button>
         <button id="lang-en" class="btn">English</button>
     </div>
 
 <div class="container flex flex-col items-center">
-    <h1 class="text-3xl font-bold mb-4">ガボールマッチ</h1>
-    <div class="info mb-4">
-        <p id="message" class="text-lg text-gray-700">ゲームモードを選択してください。</p>
-        <p id="timer" class="timer-display mt-2 hidden">タイム: 0分0秒</p>
+    <h1 id="main-title" class="text-3xl font-bold mb-4">ガボールマッチ</h1>
+    <div class="info mb-1">
+        <div id="message-area" class="text-gray-700">
+            <p id="message-desc" class="text-sm mb-2"></p>
+            <p id="message-select" class="text-lg">ゲームモードを選択してください。</p>
+        </div>
+        <p id="timer" class="timer-display hidden">タイム: 0分0秒</p>
     </div>
     <div id="mode-selection" class="mode-buttons mt-6">
-        <button id="easy-btn" class="btn">初級モード (4x4)</button>
-        <button id="hard-btn" class="btn">上級モード (6x6)</button>
+        <!-- ボタンテキストはJSで設定 -->
+        <button id="easy-btn" class="btn"></button>
+        <button id="hard-btn" class="btn"></button>
     </div>
     
     <div class="grid" id="card-grid"></div>
 
-    <div class="flex-grow mt-6" id="game-controls-container">
+    <div class="flex-grow mt-4" id="game-controls-container">
         <button id="main-action-btn" class="give-up-btn hidden">ギブアップ</button>
     </div>
 </div>
@@ -188,9 +193,12 @@
         const modeSelection = document.getElementById('mode-selection');
         const easyBtn = document.getElementById('easy-btn');
         const hardBtn = document.getElementById('hard-btn');
-        const message = document.getElementById('message');
+        const messageDesc = document.getElementById('message-desc');
+        const messageSelect = document.getElementById('message-select');
         const timerDisplay = document.getElementById('timer');
         const gameControlsContainer = document.getElementById('game-controls-container');
+        const mainTitle = document.getElementById('main-title');
+        const langSwitcher = document.getElementById('lang-switcher');
         const mainActionBtn = document.getElementById('main-action-btn');
 
         let cards = [];
@@ -202,7 +210,6 @@
         let timerInterval;
         let startTime;
         let timerStarted = false;
-        let cardSize = 80;
 
         // ガボールパッチを生成する関数
         function createGaborPatch(frequency, orientation, phase, size) {
@@ -245,12 +252,18 @@
             mainActionBtn.classList.add('give-up-btn');
             mainActionBtn.onclick = () => resetGame();
 
+            mainTitle.classList.add('hidden');
+            langSwitcher.classList.add('hidden');
+            document.getElementById('message-area').classList.add('hidden');
+
+            const isPortrait = window.innerHeight > window.innerWidth;
+
             modeSelection.innerHTML = '';
 
             if (mode === 'easy') {
                 numCards = 16;
                 gridCols = 'repeat(4, 1fr)';
-                message.textContent = texts[lang].easyMsg;     // ←ここもOK
+                const cardSize = isPortrait ? 60 : 80;
                 
                 const patchData = [
                     { freq: 0.1, ori: 0 }, { freq: 0.1, ori: Math.PI / 4 },
@@ -258,15 +271,14 @@
                     { freq: 0.05, ori: 0 }, { freq: 0.05, ori: Math.PI / 4 },
                     { freq: 0.05, ori: Math.PI / 2 }, { freq: 0.05, ori: 3 * Math.PI / 4 },
                 ].flatMap((p, index) => {
-                    const imageUrl = createGaborPatch(p.freq, p.ori, 0, 80);
+                    const imageUrl = createGaborPatch(p.freq, p.ori, 0, cardSize);
                     return [{ id: index, src: imageUrl }, { id: index, src: imageUrl }];
                 });
-                renderCards(patchData, 80);
+                renderCards(patchData, cardSize);
 
             } else { // hard mode
                 numCards = 36;
-                gridCols = 'repeat(6, 1fr)';
-                message.textContent = texts[lang].hardMsg;     // ←ここもOK
+                gridCols = isPortrait ? 'repeat(4, 1fr)' : 'repeat(6, 1fr)';
 
                 const patchData = [];
                 const frequencies = [0.05, 0.06, 0.08, 0.1, 0.12];
@@ -275,13 +287,14 @@
                 for (let f of frequencies) {
                     for (let o of orientations) {
                         if (idCounter >= numCards / 2) break;
-                        const imageUrl = createGaborPatch(f, o, 0, 80); // Size is 80px for hard mode too
+                        const cardSize = isPortrait ? 60 : 80;
+                        const imageUrl = createGaborPatch(f, o, 0, cardSize);
                         patchData.push({ id: idCounter, src: imageUrl }, { id: idCounter, src: imageUrl });
                         idCounter++;
                     }
                     if (idCounter >= numCards / 2) break;
                 }
-                renderCards(patchData, 80);
+                renderCards(patchData, isPortrait ? 60 : 80);
             }
 
             grid.style.gridTemplateColumns = gridCols;
@@ -362,11 +375,10 @@
         const texts = {
             ja: {
                 title: "ガボールマッチ",
+                description: "カードをめくってペアを見つけてください。",
                 selectMode: "ゲームモードを選択してください。",
-                easy: "初級モード (4x4)",
-                hard: "上級モード (6x6)",
-                easyMsg: "初級モード：カードをめくってペアを見つけてください。",
-                hardMsg: "上級モード：カードをめくってペアを見つけてください。",
+                easy: (n) => `初級モード (${n}枚)`,
+                hard: (n) => `上級モード (${n}枚)`,
                 time: (m, s) => `タイム: ${m}分${s}秒`,
                 giveup: "ギブアップ",
                 bingo: "ビンゴ！",
@@ -377,11 +389,10 @@
             en: {
                 title: "Gabor Match",
                 selectMode: "Please select a game mode.",
-                easy: "Easy (4x4)",
-                hard: "Hard (6x6)",
-                easyMsg: "Easy: Flip cards and find pairs.",
-                hardMsg: "Hard: Flip cards and find pairs.",
+                description: "Flip cards and find the matching pairs.",
                 time: (m, s) => `Time: ${m}m ${s}s`,
+                easy: (n) => `Easy (${n} cards)`,
+                hard: (n) => `Hard (${n} cards)`,
                 giveup: "Give Up",
                 bingo: "Bingo!",
                 clear: "Clear!",
@@ -394,11 +405,10 @@
         // UI更新関数
         function updateUIText() {
             document.querySelector('h1').textContent = texts[lang].title;
-            message.textContent = texts[lang].selectMode;
-            easyBtn.textContent = texts[lang].easy;
-            hardBtn.textContent = texts[lang].hard;
-            mainActionBtn.textContent = texts[lang].giveup;
-            timerDisplay.textContent = texts[lang].time(0, 0); // ★ここを追加
+            messageDesc.textContent = texts[lang].description;
+            messageSelect.textContent = texts[lang].selectMode;
+            easyBtn.textContent = texts[lang].easy(16);
+            hardBtn.textContent = texts[lang].hard(36);
         }
 
         // カードクリック時の処理
@@ -488,7 +498,10 @@
             modeSelection.innerHTML = '';
             modeSelection.appendChild(easyBtn);
             modeSelection.appendChild(hardBtn);
-            message.textContent = texts[lang].selectMode;
+            document.getElementById('message-area').classList.remove('hidden');
+            updateUIText();
+            mainTitle.classList.remove('hidden');
+            langSwitcher.classList.remove('hidden');
         }
 
         // checkGameOver内
@@ -498,7 +511,7 @@
                 const finalTimeInSeconds = Math.floor((Date.now() - startTime) / 1000);
                 const minutes = Math.floor(finalTimeInSeconds / 60);
                 const seconds = finalTimeInSeconds % 60;
-                message.textContent = texts[lang].clearMsg(minutes, seconds);
+                // message.textContent = texts[lang].clearMsg(minutes, seconds);
 
                 showWinMessage();
 
@@ -510,7 +523,8 @@
                     modeSelection.innerHTML = '';
                     modeSelection.appendChild(easyBtn);
                     modeSelection.appendChild(hardBtn);
-                    message.textContent = texts[lang].selectMode;
+                    document.getElementById('message-area').classList.remove('hidden');
+                    updateUIText();
                     timerDisplay.classList.add('hidden');
                     mainActionBtn.classList.add('hidden');
                     grid.innerHTML = '';
@@ -530,7 +544,7 @@
 
         // 初期UI反映
         updateUIText();
-
+        
         easyBtn.addEventListener('click', () => initializeGame('easy'));
         hardBtn.addEventListener('click', () => initializeGame('hard'));
         
