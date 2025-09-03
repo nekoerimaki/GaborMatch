@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガボールマッチ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1a202c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            margin: 2rem;
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            gap: 1rem;
+            padding: 1rem;
+            background-color: #e2e8f0;
+            border-radius: 1rem;
+        }
+        .card {
+            background-color: #4a5568;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        .card.matched {
+            pointer-events: none;
+            cursor: default;
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            border-radius: inherit;
+        }
+        .card-front {
+            background-color: #a0aec0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            transform: rotateY(180deg);
+        }
+        .card-back {
+            background-color: #4a5568;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotateY(0deg);
+        }
+        .gabor-patch {
+            border-radius: 0.5rem;
+            width: 100%;
+            height: 100%;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background-color: #3182ce;
+            color: white;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn:hover {
+            background-color: #2b6cb0;
+            transform: translateY(-2px);
+        }
+        .info {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .mode-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .reaction-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ef4444; /* red-500 */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            animation: pop-up 0.5s forwards;
+            pointer-events: none;
+        }
+        @keyframes pop-up {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        .timer-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4a5568;
+        }
+        .give-up-btn {
+            background-color: #e53e3e;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .give-up-btn:hover {
+            background-color: #c53030;
+            transform: translateY(-2px);
+        }
+        .win-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5rem;
+            font-weight: bold;
+            color: #38a169; /* green-500 */
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+            animation: fly-in-out 2s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        @keyframes fly-in-out {
+            0% { transform: scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(360deg); opacity: 1; }
+            100% { transform: scale(0) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container flex flex-col items-center">
+    <h1 class="text-3xl font-bold mb-4">ガボールマッチ</h1>
+    <div class="info mb-4">
+        <p id="message" class="text-lg text-gray-700">ゲームモードを選択してください。</p>
+        <p id="timer" class="timer-display mt-2 hidden">タイム: 0分0秒</p>
+    </div>
+    <div id="mode-selection" class="mode-buttons mt-6">
+        <button id="easy-btn" class="btn">初級モード (4x4)</button>
+        <button id="hard-btn" class="btn">上級モード (6x6)</button>
+    </div>
+    
+    <div class="grid" id="card-grid"></div>
+
+    <div class="flex-grow mt-6" id="game-controls-container">
+        <button id="main-action-btn" class="give-up-btn hidden">ギブアップ</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const grid = document.getElementById('card-grid');
+        const modeSelection = document.getElementById('mode-selection');
+        const easyBtn = document.getElementById('easy-btn');
+        const hardBtn = document.getElementById('hard-btn');
+        const message = document.getElementById('message');
+        const timerDisplay = document.getElementById('timer');
+        const gameControlsContainer = document.getElementById('game-controls-container');
+        const mainActionBtn = document.getElementById('main-action-btn');
+
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let isProcessing = false;
+        let numCards = 0;
+        let gridCols = '';
+        let timerInterval;
+        let startTime;
+        let timerStarted = false;
+        let cardSize = 80;
+
+        // ガボールパッチを生成する関数
+        function createGaborPatch(frequency, orientation, phase, size) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const halfSize = size / 2;
+            canvas.width = size;
+            canvas.height = size;
+
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    const xPrime = (x - halfSize) * Math.cos(orientation) + (y - halfSize) * Math.sin(orientation);
+                    const yPrime = -(x - halfSize) * Math.sin(orientation) + (y - halfSize) * Math.cos(orientation);
+                    const exponent = -((xPrime * xPrime) + (yPrime * yPrime)) / (2 * (size / 6) ** 2);
+                    const sinusoidal = Math.cos(2 * Math.PI * frequency * xPrime + phase);
+                    const intensity = 0.5 + 0.5 * Math.exp(exponent) * sinusoidal;
+                    const gray = Math.floor(intensity * 255);
+                    ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+            return canvas.toDataURL();
+        }
+
+        // ゲームを初期化する
+        function initializeGame(mode) {
+            grid.innerHTML = '';
+            cards = [];
+            flippedCards = [];
+            matchedPairs = 0;
+            isProcessing = false;
+            
+            clearInterval(timerInterval);
+            timerStarted = false;
+            timerDisplay.textContent = 'タイム: 0分0秒';
+            timerDisplay.classList.remove('hidden');
+            mainActionBtn.classList.remove('hidden');
+            mainActionBtn.textContent = 'ギブアップ';
+            mainActionBtn.classList.remove('btn');
+            mainActionBtn.classList.add('give-up-btn');
+            mainActionBtn.onclick = () => resetGame();
+
+            modeSelection.innerHTML = '';
+
+            if (mode === 'easy') {
+                numCards = 16;
+                gridCols = 'repeat(4, 1fr)';
+                message.textContent = '初級モード：カードをめくってペアを見つけてください。';
+                
+                const patchData = [
+                    { freq: 0.1, ori: 0 }, { freq: 0.1, ori: Math.PI / 4 },
+                    { freq: 0.1, ori: Math.PI / 2 }, { freq: 0.1, ori: 3 * Math.PI / 4 },
+                    { freq: 0.05, ori: 0 }, { freq: 0.05, ori: Math.PI / 4 },
+                    { freq: 0.05, ori: Math.PI / 2 }, { freq: 0.05, ori: 3 * Math.PI / 4 },
+                ].flatMap((p, index) => {
+                    const imageUrl = createGaborPatch(p.freq, p.ori, 0, 80);
+                    return [{ id: index, src: imageUrl }, { id: index, src: imageUrl }];
+                });
+                renderCards(patchData, 80);
+
+            } else { // hard mode
+                numCards = 36;
+                gridCols = 'repeat(6, 1fr)';
+                message.textContent = '上級モード：カードをめくってペアを見つけてください。';
+
+                const patchData = [];
+                const frequencies = [0.07, 0.08, 0.09, 0.1, 0.11, 0.12];
+                const orientations = [0, Math.PI / 4, Math.PI / 2];
+                let idCounter = 0;
+                for (let f of frequencies) {
+                    for (let o of orientations) {
+                        if (idCounter >= numCards / 2) break;
+                        const imageUrl = createGaborPatch(f, o, 0, 80); // Size is 80px for hard mode too
+                        patchData.push({ id: idCounter, src: imageUrl }, { id: idCounter, src: imageUrl });
+                        idCounter++;
+                    }
+                    if (idCounter >= numCards / 2) break;
+                }
+                renderCards(patchData, 80);
+            }
+
+            grid.style.gridTemplateColumns = gridCols;
+        }
+
+        function renderCards(patchData, cardSize) {
+            patchData.sort(() => 0.5 - Math.random());
+            patchData.forEach(item => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.style.width = `${cardSize}px`;
+                card.style.height = `${cardSize}px`;
+                card.dataset.id = item.id;
+                
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-inner', 'card-front');
+                const img = document.createElement('img');
+                img.src = item.src;
+                img.classList.add('gabor-patch');
+                cardFront.appendChild(img);
+                
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-inner', 'card-back');
+
+                card.appendChild(cardFront);
+                card.appendChild(cardBack);
+
+                card.addEventListener('click', () => handleCardClick(card));
+                grid.appendChild(card);
+                cards.push(card);
+            });
+        }
+
+        // カードクリック時の処理
+        function handleCardClick(card) {
+            if (isProcessing || card.classList.contains('matched') || flippedCards.length >= 2) {
+                return;
+            }
+
+            if (!timerStarted) {
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000); // 1秒ごとに更新
+                timerStarted = true;
+            }
+
+            if (flippedCards.length === 1 && flippedCards[0] === card) {
+                card.classList.remove('flipped');
+                flippedCards = [];
+                return;
+            }
+
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                isProcessing = true;
+                const [card1, card2] = flippedCards;
+                if (card1.dataset.id === card2.dataset.id) {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    matchedPairs++;
+                    showReactionMessage('ビンゴ！');
+                    flippedCards = [];
+                    isProcessing = false;
+                    checkGameOver();
+                } else {
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        flippedCards = [];
+                        isProcessing = false;
+                    }, 1000);
+                }
+            }
+        }
+
+        function showReactionMessage(msg) {
+            const reactionMsg = document.createElement('div');
+            reactionMsg.textContent = msg;
+            reactionMsg.classList.add('reaction-message');
+            document.body.appendChild(reactionMsg);
+            setTimeout(() => {
+                reactionMsg.remove();
+            }, 1000);
+        }
+
+        function showWinMessage() {
+            const winMsg = document.createElement('div');
+            winMsg.textContent = 'クリア！';
+            winMsg.classList.add('win-message');
+            document.body.appendChild(winMsg);
+            setTimeout(() => {
+                winMsg.remove();
+            }, 2000);
+        }
+
+        function updateTimer() {
+            const elapsedTimeInSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsedTimeInSeconds / 60);
+            const seconds = elapsedTimeInSeconds % 60;
+            timerDisplay.textContent = `タイム: ${minutes}分${seconds}秒`;
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            grid.innerHTML = '';
+            cards = [];
+            flippedCards = [];
+            matchedPairs = 0;
+            isProcessing = false;
+            timerStarted = false;
+            timerDisplay.classList.add('hidden');
+            mainActionBtn.classList.add('hidden');
+            modeSelection.innerHTML = '';
+            modeSelection.appendChild(easyBtn);
+            modeSelection.appendChild(hardBtn);
+            message.textContent = 'ゲームモードを選択してください。';
+        }
+
+        function checkGameOver() {
+            if (matchedPairs === numCards / 2) {
+                clearInterval(timerInterval);
+                const finalTimeInSeconds = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(finalTimeInSeconds / 60);
+                const seconds = finalTimeInSeconds % 60;
+                message.textContent = `ゲームクリア！クリアタイム: ${minutes}分${seconds}秒 🎉`;
+                
+                showWinMessage();
+
+                mainActionBtn.textContent = 'もう一度プレイ';
+                mainActionBtn.classList.remove('give-up-btn');
+                mainActionBtn.classList.add('btn');
+                
+                mainActionBtn.onclick = () => {
+                    modeSelection.innerHTML = '';
+                    modeSelection.appendChild(easyBtn);
+                    modeSelection.appendChild(hardBtn);
+                    message.textContent = 'ゲームモードを選択してください。';
+                    timerDisplay.classList.add('hidden');
+                    mainActionBtn.classList.add('hidden');
+                    grid.innerHTML = '';
+                };
+            }
+        }
+
+        easyBtn.addEventListener('click', () => initializeGame('easy'));
+        hardBtn.addEventListener('click', () => initializeGame('hard'));
+        
+    });
+</script>
+
+</body>
+</html>
