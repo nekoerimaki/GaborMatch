@@ -159,6 +159,10 @@
     </style>
 </head>
 <body>
+    <div class="absolute top-4 right-8 z-50">
+        <button id="lang-ja" class="btn mr-2">日本語</button>
+        <button id="lang-en" class="btn">English</button>
+    </div>
 
 <div class="container flex flex-col items-center">
     <h1 class="text-3xl font-bold mb-4">ガボールマッチ</h1>
@@ -233,10 +237,10 @@
             
             clearInterval(timerInterval);
             timerStarted = false;
-            timerDisplay.textContent = 'タイム: 0分0秒';
+            timerDisplay.textContent = texts[lang].time(0, 0); // ←ここを修正
             timerDisplay.classList.remove('hidden');
             mainActionBtn.classList.remove('hidden');
-            mainActionBtn.textContent = 'ギブアップ';
+            mainActionBtn.textContent = texts[lang].giveup;    // ←ここを修正
             mainActionBtn.classList.remove('btn');
             mainActionBtn.classList.add('give-up-btn');
             mainActionBtn.onclick = () => resetGame();
@@ -246,7 +250,7 @@
             if (mode === 'easy') {
                 numCards = 16;
                 gridCols = 'repeat(4, 1fr)';
-                message.textContent = '初級モード：カードをめくってペアを見つけてください。';
+                message.textContent = texts[lang].easyMsg;     // ←ここもOK
                 
                 const patchData = [
                     { freq: 0.1, ori: 0 }, { freq: 0.1, ori: Math.PI / 4 },
@@ -262,7 +266,7 @@
             } else { // hard mode
                 numCards = 36;
                 gridCols = 'repeat(6, 1fr)';
-                message.textContent = '上級モード：カードをめくってペアを見つけてください。';
+                message.textContent = texts[lang].hardMsg;     // ←ここもOK
 
                 const patchData = [];
                 const frequencies = [0.07, 0.08, 0.09, 0.1, 0.11, 0.12];
@@ -354,6 +358,93 @@
             }
         }
 
+        // 言語辞書
+        const texts = {
+            ja: {
+                title: "ガボールマッチ",
+                selectMode: "ゲームモードを選択してください。",
+                easy: "初級モード (4x4)",
+                hard: "上級モード (6x6)",
+                easyMsg: "初級モード：カードをめくってペアを見つけてください。",
+                hardMsg: "上級モード：カードをめくってペアを見つけてください。",
+                time: (m, s) => `タイム: ${m}分${s}秒`,
+                giveup: "ギブアップ",
+                bingo: "ビンゴ！",
+                clear: "クリア！",
+                clearMsg: (m, s) => `ゲームクリア！クリアタイム: ${m}分${s}秒 🎉`,
+                replay: "もう一度プレイ"
+            },
+            en: {
+                title: "Gabor Match",
+                selectMode: "Please select a game mode.",
+                easy: "Easy (4x4)",
+                hard: "Hard (6x6)",
+                easyMsg: "Easy: Flip cards and find pairs.",
+                hardMsg: "Hard: Flip cards and find pairs.",
+                time: (m, s) => `Time: ${m}m ${s}s`,
+                giveup: "Give Up",
+                bingo: "Bingo!",
+                clear: "Clear!",
+                clearMsg: (m, s) => `Game Clear! Time: ${m}m ${s}s 🎉`,
+                replay: "Play Again"
+            }
+        };
+        let lang = 'ja';
+
+        // UI更新関数
+        function updateUIText() {
+            document.querySelector('h1').textContent = texts[lang].title;
+            message.textContent = texts[lang].selectMode;
+            easyBtn.textContent = texts[lang].easy;
+            hardBtn.textContent = texts[lang].hard;
+            mainActionBtn.textContent = texts[lang].giveup;
+            timerDisplay.textContent = texts[lang].time(0, 0); // ★ここを追加
+        }
+
+        // カードクリック時の処理
+        function handleCardClick(card) {
+            if (isProcessing || card.classList.contains('matched') || flippedCards.length >= 2) {
+                return;
+            }
+
+            if (!timerStarted) {
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000); // 1秒ごとに更新
+                timerStarted = true;
+            }
+
+            if (flippedCards.length === 1 && flippedCards[0] === card) {
+                card.classList.remove('flipped');
+                flippedCards = [];
+                return;
+            }
+
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                isProcessing = true;
+                const [card1, card2] = flippedCards;
+                if (card1.dataset.id === card2.dataset.id) {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    matchedPairs++;
+                    showReactionMessage(texts[lang].bingo);
+                    flippedCards = [];
+                    isProcessing = false;
+                    checkGameOver();
+                } else {
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        flippedCards = [];
+                        isProcessing = false;
+                    }, 1000);
+                }
+            }
+        }
+
+        // showReactionMessage内
         function showReactionMessage(msg) {
             const reactionMsg = document.createElement('div');
             reactionMsg.textContent = msg;
@@ -364,9 +455,10 @@
             }, 1000);
         }
 
+        // showWinMessage内
         function showWinMessage() {
             const winMsg = document.createElement('div');
-            winMsg.textContent = 'クリア！';
+            winMsg.textContent = texts[lang].clear;
             winMsg.classList.add('win-message');
             document.body.appendChild(winMsg);
             setTimeout(() => {
@@ -374,13 +466,15 @@
             }, 2000);
         }
 
+        // updateTimer内
         function updateTimer() {
             const elapsedTimeInSeconds = Math.floor((Date.now() - startTime) / 1000);
             const minutes = Math.floor(elapsedTimeInSeconds / 60);
             const seconds = elapsedTimeInSeconds % 60;
-            timerDisplay.textContent = `タイム: ${minutes}分${seconds}秒`;
+            timerDisplay.textContent = texts[lang].time(minutes, seconds);
         }
 
+        // resetGame内
         function resetGame() {
             clearInterval(timerInterval);
             grid.innerHTML = '';
@@ -394,20 +488,21 @@
             modeSelection.innerHTML = '';
             modeSelection.appendChild(easyBtn);
             modeSelection.appendChild(hardBtn);
-            message.textContent = 'ゲームモードを選択してください。';
+            message.textContent = texts[lang].selectMode;
         }
 
+        // checkGameOver内
         function checkGameOver() {
             if (matchedPairs === numCards / 2) {
                 clearInterval(timerInterval);
                 const finalTimeInSeconds = Math.floor((Date.now() - startTime) / 1000);
                 const minutes = Math.floor(finalTimeInSeconds / 60);
                 const seconds = finalTimeInSeconds % 60;
-                message.textContent = `ゲームクリア！クリアタイム: ${minutes}分${seconds}秒 🎉`;
-                
+                message.textContent = texts[lang].clearMsg(minutes, seconds);
+
                 showWinMessage();
 
-                mainActionBtn.textContent = 'もう一度プレイ';
+                mainActionBtn.textContent = texts[lang].replay;
                 mainActionBtn.classList.remove('give-up-btn');
                 mainActionBtn.classList.add('btn');
                 
@@ -415,13 +510,26 @@
                     modeSelection.innerHTML = '';
                     modeSelection.appendChild(easyBtn);
                     modeSelection.appendChild(hardBtn);
-                    message.textContent = 'ゲームモードを選択してください。';
+                    message.textContent = texts[lang].selectMode;
                     timerDisplay.classList.add('hidden');
                     mainActionBtn.classList.add('hidden');
                     grid.innerHTML = '';
                 };
             }
         }
+
+        // 言語切り替えイベント
+        document.getElementById('lang-ja').onclick = () => {
+            lang = 'ja';
+            updateUIText();
+        };
+        document.getElementById('lang-en').onclick = () => {
+            lang = 'en';
+            updateUIText();
+        };
+
+        // 初期UI反映
+        updateUIText();
 
         easyBtn.addEventListener('click', () => initializeGame('easy'));
         hardBtn.addEventListener('click', () => initializeGame('hard'));
