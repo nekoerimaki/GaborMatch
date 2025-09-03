@@ -26,6 +26,20 @@
             margin: 2rem;
             text-align: center;
         }
+        /* 縦幅が狭い画面用のスタイル */
+        .container.compact-y {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .container.compact-y .grid {
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+        .container.compact-y #game-controls-container {
+            margin-top: 1rem; /* mt-4 */
+        }
         .grid {
             display: grid;
             gap: 1rem;
@@ -190,6 +204,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('card-grid');
+        const container = document.querySelector('.container');
         const modeSelection = document.getElementById('mode-selection');
         const easyBtn = document.getElementById('easy-btn');
         const hardBtn = document.getElementById('hard-btn');
@@ -255,6 +270,11 @@
             mainTitle.classList.add('hidden');
             langSwitcher.classList.add('hidden');
             document.getElementById('message-area').classList.add('hidden');
+
+            // 画面の高さに応じて余白を調整
+            if (window.innerHeight < 750) {
+                container.classList.add('compact-y');
+            }
 
             const isPortrait = window.innerHeight > window.innerWidth;
 
@@ -502,6 +522,7 @@
             updateUIText();
             mainTitle.classList.remove('hidden');
             langSwitcher.classList.remove('hidden');
+            container.classList.remove('compact-y');
         }
 
         // checkGameOver内
@@ -528,6 +549,7 @@
                     timerDisplay.classList.add('hidden');
                     mainActionBtn.classList.add('hidden');
                     grid.innerHTML = '';
+                    container.classList.remove('compact-y');
                 };
             }
         }
