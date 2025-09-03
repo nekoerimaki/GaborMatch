@@ -1,4 +1,4 @@
-Gabor Match
+Gabor Match https://nekoerimaki.github.io/GaborMatch/
 
 Gabor Matchは、ガボールパッチを使った神経衰弱ゲームです。同じ模様のペアを見つけて、すべてのカードをめくりましょう。
 
